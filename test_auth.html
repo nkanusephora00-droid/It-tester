@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Auth</title>
+</head>
+<body>
+    <h1>Test Authentication</h1>
+
+    <div>
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username" value="admin"><br>
+        <input type="password" id="password" placeholder="Password" value="admin123"><br>
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div>
+        <h2>Test /auth/me</h2>
+        <button onclick="testMe()">Test Me Endpoint</button>
+    </div>
+
+    <div>
+        <h2>Results</h2>
+        <pre id="results"></pre>
+    </div>
+
+    <script>
+        let token = null;
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            log('Attempting login...');
+
+            try {
+                const response = await fetch('http://localhost:8000/auth/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                log('Login response:', response.status, data);
+
+                if (response.ok) {
+                    token = data.access_token;
+                    log('Token stored:', token.substring(0, 20) + '...');
+                }
+            } catch (error) {
+                log('Login error:', error);
+            }
+        }
+
+        async function testMe() {
+            if (!token) {
+                log('No token available, login first');
+                return;
+            }
+
+            log('Testing /auth/me...');
+
+            try {
+                const response = await fetch('http://localhost:8000/auth/me', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                log('Me response:', response.status, data);
+            } catch (error) {
+                log('Me error:', error);
+            }
+        }
+
+        function log(...args) {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.textContent += `[${timestamp}] ` + args.map(arg =>
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ') + '\n\n';
+            console.log(...args);
+        }
+    </script>
+</body>
+</html>

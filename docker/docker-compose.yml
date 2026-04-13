@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: app-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/gestion_de_motdepasse
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../backend:/app/backend
+    depends_on:
+      - db
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Frontend React application
+  frontend:
+    build:
+      context: ../frontend-react
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: app-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    container_name: app-database
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=gestion_de_motdepasse
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
