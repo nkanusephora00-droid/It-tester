@@ -29,20 +29,40 @@ public class AuthController {
     private final UserRepository userRepository;
     private final SettingService settingService;
     
-    @PostMapping("/token")
+    @PostMapping(value = "/token", consumes = {"application/json", "application/x-www-form-urlencoded"})
     @Operation(summary = "Connexion", description = "Authentifie l'utilisateur et retourne un token JWT")
-    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<TokenResponse> login(
+            @Valid @RequestBody(required = false) LoginRequest requestBody,
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "password", required = false) String password) {
+        
+        String user = username;
+        String pass = password;
+        
+        if (requestBody != null) {
+            user = requestBody.getUsername();
+            pass = requestBody.getPassword();
+        }
+        
+        if (user == null || pass == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(TokenResponse.builder()
+                            .accessToken("Nom d'utilisateur et mot de passe requis")
+                            .tokenType("bearer")
+                            .build());
+        }
+        
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+                    new UsernamePasswordAuthenticationToken(user, pass)
             );
             
             SecurityContextHolder.getContext().setAuthentication(authentication);
             
-            User user = userRepository.findByUsername(request.getUsername())
+            User existingUser = userRepository.findByUsername(user)
                     .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
             
-            if (user.getIsActive() != null && !user.getIsActive()) {
+            if (existingUser.getIsActive() != null && !existingUser.getIsActive()) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(TokenResponse.builder()
                                 .accessToken("Compte désactivé. Veuillez contacter l'administrateur.")
@@ -71,7 +91,6 @@ public class AuthController {
     public ResponseEntity<CurrentUserResponse> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
-        
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
         
